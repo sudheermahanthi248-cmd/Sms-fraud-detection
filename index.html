@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SMS Spam Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: #2a2a38;
+    --accent: #7c6dfa;
+    --accent2: #fa6d6d;
+    --green: #5df5a0;
+    --red: #ff5f6d;
+    --text: #e8e8f0;
+    --muted: #7070a0;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,109,250,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(250,109,109,0.08) 0%, transparent 50%);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeDown 0.6s ease both;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(124,109,250,0.12);
+    border: 1px solid rgba(124,109,250,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+  h1 span { color: var(--accent); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 300;
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── MAIN CARD ── */
+  .card {
+    width: 100%;
+    max-width: 680px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .input-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 16px;
+    resize: none;
+    height: 120px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,109,250,0.12);
+  }
+
+  .char-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 6px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn-analyze {
+    flex: 1;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-analyze:hover {
+    opacity: 0.9;
+    box-shadow: 0 4px 20px rgba(124,109,250,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-analyze:active { transform: translateY(0); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-clear {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── RESULT ── */
+  .result-box {
+    margin-top: 24px;
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid transparent;
+    display: none;
+    animation: fadeUp 0.3s ease both;
+  }
+  .result-box.spam {
+    background: rgba(255,95,109,0.07);
+    border-color: rgba(255,95,109,0.3);
+  }
+  .result-box.ham {
+    background: rgba(93,245,160,0.07);
+    border-color: rgba(93,245,160,0.3);
+  }
+
+  .result-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .result-label {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .result-label.spam { color: var(--red); }
+  .result-label.ham  { color: var(--green); }
+
+  .result-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .result-icon.spam { background: rgba(255,95,109,0.15); }
+  .result-icon.ham  { background: rgba(93,245,160,0.15); }
+
+  .confidence-bar-wrap {
+    margin-top: 4px;
+  }
+  .confidence-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .confidence-bar {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .confidence-fill {
+    height: 100%;
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .spam .confidence-fill  { background: var(--red); }
+  .ham  .confidence-fill  { background: var(--green); }
+
+  .result-message {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    word-break: break-word;
+  }
+  .result-message strong { color: var(--text); }
+
+  /* ── EXAMPLES ── */
+  .examples-section {
+    width: 100%; max-width: 680px;
+    margin-top: 28px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .examples-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media(max-width: 520px) { .examples-grid { grid-template-columns: 1fr; } }
+
+  .example-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .example-chip:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-1px);
+  }
+  .chip-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .chip-tag.spam { background: rgba(255,95,109,0.15); color: var(--red); }
+  .chip-tag.ham  { background: rgba(93,245,160,0.15); color: var(--green); }
+  .chip-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── STATS ── */
+  .stats-row {
+    width: 100%; max-width: 680px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 28px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeDown {
+    from { opacity:0; transform: translateY(-20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .history-section {
+    width: 100%; max-width: 680px;
+    margin-top: 28px;
+    animation: fadeUp 0.6s 0.35s ease both;
+  }
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .history-msg { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .history-tag.spam { background: rgba(255,95,109,0.15); color: var(--red); }
+  .history-tag.ham  { background: rgba(93,245,160,0.15); color: var(--green); }
+
+  footer {
+    margin-top: 48px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="badge"><span class="badge-dot"></span> ML MODEL ACTIVE</div>
+  <h1>SMS <span>Spam</span><br>Detector</h1>
+  <p class="subtitle">Paste any SMS message below and our machine learning model will instantly classify it as spam or legitimate.</p>
+</div>
+
+<!-- MAIN CARD -->
+<div class="card">
+  <label class="input-label">Enter SMS Message</label>
+  <textarea id="smsInput" placeholder="e.g. Congratulations! You've won a FREE iPhone. Click here to claim now..." maxlength="500" oninput="updateChar()"></textarea>
+  <div class="char-count"><span id="charCount">0</span> / 500</div>
+
+  <div class="btn-row">
+    <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">
+      <span class="spinner" id="spinner"></span>
+      <span id="btnText">Analyze Message</span>
+    </button>
+    <button class="btn-clear" onclick="clearAll()">Clear</button>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-box" id="resultBox">
+    <div class="result-top">
+      <div class="result-label" id="resultLabel">
+        <div class="result-icon" id="resultIcon"></div>
+        <span id="resultText"></span>
+      </div>
+    </div>
+    <div class="confidence-bar-wrap">
+      <div class="confidence-label">
+        <span>Confidence</span>
+        <span id="confVal">0%</span>
+      </div>
+      <div class="confidence-bar">
+        <div class="confidence-fill" id="confFill"></div>
+      </div>
+    </div>
+    <div class="result-message" id="resultMessage"></div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-row" id="statsRow">
+  <div class="stat-card">
+    <div class="stat-val" id="statAccuracy">--</div>
+    <div class="stat-lbl">Model Accuracy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" id="statChecked">0</div>
+    <div class="stat-lbl">Messages Checked</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" id="statSpam">0</div>
+    <div class="stat-lbl">Spam Detected</div>
+  </div>
+</div>
+
+<!-- EXAMPLES -->
+<div class="examples-section">
+  <div class="section-title">Try these examples</div>
+  <div class="examples-grid">
+    <div class="example-chip" onclick="tryExample(this.dataset.msg)">
+      <span class="chip-tag spam">SPAM</span>
+      <span class="chip-text">WINNER!! You have been selected to win a £1000 prize. Call now!</span>
+      <span style="display:none" data-msg="WINNER!! You have been selected to win a £1000 prize. Call now!"></span>
+    </div>
+    <div class="example-chip" onclick="tryExample(this.querySelector('[data-msg]').dataset.msg)">
+      <span class="chip-tag ham">HAM</span>
+      <span class="chip-text">Hey, are we still meeting for lunch tomorrow at 1pm?</span>
+      <span style="display:none" data-msg="Hey, are we still meeting for lunch tomorrow at 1pm?"></span>
+    </div>
+    <div class="example-chip" onclick="tryExample(this.querySelector('[data-msg]').dataset.msg)">
+      <span class="chip-tag spam">SPAM</span>
+      <span class="chip-text">FREE entry to win FA Cup final tickets. Text FA to 87121 now!</span>
+      <span style="display:none" data-msg="FREE entry to win FA Cup final tickets. Text FA to 87121 now!"></span>
+    </div>
+    <div class="example-chip" onclick="tryExample(this.querySelector('[data-msg]').dataset.msg)">
+      <span class="chip-tag ham">HAM</span>
+      <span class="chip-text">I'll be home by 8pm. Can you please keep dinner ready?</span>
+      <span style="display:none" data-msg="I'll be home by 8pm. Can you please keep dinner ready?"></span>
+    </div>
+    <div class="example-chip" onclick="tryExample(this.querySelector('[data-msg]').dataset.msg)">
+      <span class="chip-tag spam">SPAM</span>
+      <span class="chip-text">URGENT: Your bank account is at risk. Click http://secure-verify.com now!</span>
+      <span style="display:none" data-msg="URGENT: Your bank account is at risk. Click http://secure-verify.com now!"></span>
+    </div>
+    <div class="example-chip" onclick="tryExample(this.querySelector('[data-msg]').dataset.msg)">
+      <span class="chip-tag ham">HAM</span>
+      <span class="chip-text">Don't forget to bring your notes for the exam tomorrow morning.</span>
+      <span style="display:none" data-msg="Don't forget to bring your notes for the exam tomorrow morning."></span>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="history-section" id="historySection" style="display:none">
+  <div class="section-title">Recent checks</div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<footer>SMS SPAM DETECTOR &nbsp;·&nbsp; SVM MODEL &nbsp;·&nbsp; NLP + TF-IDF</footer>
+
+<script>
+  let checkedCount = 0;
+  let spamCount    = 0;
+  let history      = [];
+
+  // Load model status on page load
+  window.addEventListener('load', () => {
+    fetch('/status')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('statAccuracy').textContent =
+          d.accuracy ? d.accuracy + '%' : (d.demo_mode ? 'Demo' : '--');
+      })
+      .catch(() => {
+        document.getElementById('statAccuracy').textContent = 'Demo';
+      });
+  });
+
+  function updateChar() {
+    const val = document.getElementById('smsInput').value.length;
+    document.getElementById('charCount').textContent = val;
+  }
+
+  function tryExample(msg) {
+    document.getElementById('smsInput').value = msg;
+    updateChar();
+    analyze();
+  }
+
+  function clearAll() {
+    document.getElementById('smsInput').value = '';
+    updateChar();
+    const rb = document.getElementById('resultBox');
+    rb.style.display = 'none';
+  }
+
+  function analyze() {
+    const msg = document.getElementById('smsInput').value.trim();
+    if (!msg) {
+      document.getElementById('smsInput').focus();
+      return;
+    }
+
+    // Show loading
+    const btn     = document.getElementById('analyzeBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    btn.disabled      = true;
+    spinner.style.display = 'block';
+    btnText.textContent   = 'Analyzing...';
+
+    fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    })
+    .then(r => r.json())
+    .then(data => {
+      showResult(data);
+      addHistory(data);
+      updateStats(data);
+    })
+    .catch(() => {
+      // Fallback demo prediction if server is not running
+      const spamWords = ['free','win','winner','prize','urgent','click','claim',
+                         'congratulations','selected','offer','cash','call now',
+                         'fa cup','bank','verify','http'];
+      const lower = msg.toLowerCase();
+      const isSpam = spamWords.some(w => lower.includes(w));
+      const data = {
+        label: isSpam ? 'SPAM' : 'HAM',
+        confidence: isSpam ? 91.2 : 88.7,
+        message: msg,
+        demo_mode: true
+      };
+      showResult(data);
+      addHistory(data);
+      updateStats(data);
+    })
+    .finally(() => {
+      btn.disabled          = false;
+      spinner.style.display = 'none';
+      btnText.textContent   = 'Analyze Message';
+    });
+  }
+
+  function showResult(data) {
+    const rb    = document.getElementById('resultBox');
+    const label = document.getElementById('resultLabel');
+    const icon  = document.getElementById('resultIcon');
+    const text  = document.getElementById('resultText');
+    const conf  = document.getElementById('confVal');
+    const fill  = document.getElementById('confFill');
+    const msg   = document.getElementById('resultMessage');
+
+    const isSpam = data.label === 'SPAM';
+
+    rb.className    = 'result-box ' + (isSpam ? 'spam' : 'ham');
+    label.className = 'result-label ' + (isSpam ? 'spam' : 'ham');
+    icon.className  = 'result-icon ' + (isSpam ? 'spam' : 'ham');
+    icon.textContent = isSpam ? '⚠' : '✓';
+    text.textContent = isSpam ? 'SPAM' : 'LEGITIMATE';
+
+    conf.textContent = data.confidence.toFixed(1) + '%';
+
+    rb.style.display = 'block';
+    // Animate bar after display
+    setTimeout(() => {
+      fill.style.width = data.confidence + '%';
+    }, 50);
+
+    if (isSpam) {
+      msg.innerHTML = '<strong>Warning:</strong> This message shows signs of spam — it may contain suspicious links, prize claims, urgent requests, or deceptive content. Do not click any links or share personal information.';
+    } else {
+      msg.innerHTML = '<strong>Looks safe:</strong> This message appears to be a legitimate SMS. No suspicious patterns were detected by the model.';
+    }
+
+    if (data.demo_mode) {
+      msg.innerHTML += '<br><br><em style="color:var(--muted);font-size:11px;">Running in demo mode — start app.py for full ML model.</em>';
+    }
+  }
+
+  function addHistory(data) {
+    history.unshift(data);
+    if (history.length > 5) history.pop();
+
+    const section = document.getElementById('historySection');
+    const list    = document.getElementById('historyList');
+    section.style.display = 'block';
+    list.innerHTML = history.map(h => `
+      <div class="history-item">
+        <span class="history-msg">${h.message.substring(0, 60)}${h.message.length > 60 ? '...' : ''}</span>
+        <span class="history-tag ${h.label === 'SPAM' ? 'spam' : 'ham'}">${h.label}</span>
+      </div>
+    `).join('');
+  }
+
+  function updateStats(data) {
+    checkedCount++;
+    if (data.label === 'SPAM') spamCount++;
+    document.getElementById('statChecked').textContent = checkedCount;
+    document.getElementById('statSpam').textContent    = spamCount;
+  }
+
+  // Allow Ctrl+Enter to submit
+  document.getElementById('smsInput').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') analyze();
+  });
+</script>
+</body>
+</html>
